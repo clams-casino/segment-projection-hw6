@@ -48,12 +48,7 @@ class AugmentedRealityBasicsNode(DTROS):
         # construct publisher for AR images
         self.pub = rospy.Publisher('~' + self.map_file_basename + '/image/compressed', CompressedImage, queue_size=10)
 
-        
-        # read mapfile as a dictionary
-        rospack = rospkg.RosPack()
-        map_path= rospack.get_path('augmented_reality_basics') + '/maps/' + self.map_file
-        rospy.loginfo('Reading map file from {}'.format(map_path))
-        self.map_dict = readYamlFile(map_path)
+    
 
         # get camera calibration parameters (homography, camera matrix, distortion parameters)
         self.intrinsics_file = '/data/config/calibrations/camera_intrinsic/' + rospy.get_namespace().strip("/") + ".yaml"
@@ -70,21 +65,35 @@ class AugmentedRealityBasicsNode(DTROS):
         camera_params['image_width'] = intrinsics['image_width']
         camera_params['camera_matrix'] = np.array(intrinsics['camera_matrix']['data']).reshape(3,3)
         camera_params['distortion_coefficients'] = np.array(intrinsics['distortion_coefficients']['data'])
-        camera_params['ground_homography'] = np.array(extrinsics['homography']).reshape(3,3)
+        camera_params['homography'] = np.array(extrinsics['homography']).reshape(3,3)
 
 
         # initialize augmenter with camera calibration parameters
         self.augmenter = Augmenter(camera_params)
 
 
+         # read mapfile as a dictionary
+        rospack = rospkg.RosPack()
+        map_path= rospack.get_path('augmented_reality_basics') + '/maps/' + self.map_file
+        rospy.loginfo('Reading map file from {}'.format(map_path))
+        self.map_dict = readYamlFile(map_path)
+
+        # make sure map is in the right coordinates
+        for _, val in self.map_dict['points'].items():
+            if val[0] == 'axle':
+                val[0] = 'image_undistorted'
+                val[-1] = self.augmenter.ground2pixel(val[-1])
+
+                   
+
     def callback(self, data):
         raw_img = self.bridge.compressed_imgmsg_to_cv2(data, desired_encoding="passthrough")
 
-
         undistorted_img = self.augmenter.process_image(raw_img)
+        ar_img = self.augmenter.render_segments(undistorted_img, self.map_dict)
+        ar_img = self.augmenter.crop_to_roi(ar_img)
 
-
-        msg = self.bridge.cv2_to_compressed_imgmsg(undistorted_img, dst_format='jpeg')
+        msg = self.bridge.cv2_to_compressed_imgmsg(ar_img, dst_format='jpeg')
         self.pub.publish(msg)
 
 
