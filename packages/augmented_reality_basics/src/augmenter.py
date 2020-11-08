@@ -28,8 +28,8 @@ class Augmenter:
 
         self.new_cam_mat, self.roi = cv2.getOptimalNewCameraMatrix(self.cam_mat,
                                                                    self.dist_coeff,
-                                                                   (self.w,
-                                                                    self.h), 0,
+                                                                   (self.w, self.h), 
+                                                                   0,
                                                                    (self.w, self.h))
 
     # Undistorts image
