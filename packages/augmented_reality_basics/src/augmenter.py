@@ -1,4 +1,4 @@
-import cv2 
+import cv2
 import numpy as np
 
 
@@ -8,7 +8,7 @@ def draw_segment(image, pt_x, pt_y, color):
         'green': ['rgb', [0, 1, 0]],
         'blue': ['rgb', [0, 0, 1]],
         'yellow': ['rgb', [1, 1, 0]],
-        'magenta': ['rgb', [1, 0 , 1]],
+        'magenta': ['rgb', [1, 0, 1]],
         'cyan': ['rgb', [0, 1, 1]],
         'white': ['rgb', [1, 1, 1]],
         'black': ['rgb', [0, 0, 0]]}
@@ -27,28 +27,28 @@ class Augmenter:
         self.H_ground2pixel = np.linalg.inv(camera_params['homography'])
 
         self.new_cam_mat, self.roi = cv2.getOptimalNewCameraMatrix(self.cam_mat,
-                                                                    self.dist_coeff,
-                                                                    (self.w, self.h), 0,
-                                                                    (self.w, self.h))
+                                                                   self.dist_coeff,
+                                                                   (self.w,
+                                                                    self.h), 0,
+                                                                   (self.w, self.h))
 
     # Undistorts image
     def process_image(self, distorted_img):
         return cv2.undistort(distorted_img, self.cam_mat, self.dist_coeff, None, self.new_cam_mat)
 
-
     def crop_to_roi(self, img):
-        x,y,w,h = self.roi
+        x, y, w, h = self.roi
         return img[y:y+h, x:x+w]
 
-
     # Projects ground points to image points
+
     def ground2pixel(self, point_ground):
         # point_ground = [x y 0]
-        point_ground[-1] = 1 
-        point_img = np.dot(self.H_ground2pixel, np.array(point_ground).reshape(3,1)).squeeze()
+        point_ground[-1] = 1
+        point_img = np.dot(self.H_ground2pixel, np.array(
+            point_ground).reshape(3, 1)).squeeze()
 
         return [point_img[0]/point_img[2], point_img[1]/point_img[2]]
-
 
     def render_segments(self, original_img, map_dict):
         img = original_img.copy()

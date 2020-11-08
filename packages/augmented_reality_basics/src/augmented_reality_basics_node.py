@@ -25,17 +25,17 @@ def readYamlFile(fname):
             return yaml_dict
         except yaml.YAMLError as exc:
             self.log("YAML syntax error. File: %s fname. Exc: %s"
-                     %(fname, exc), type='fatal')
+                     % (fname, exc), type='fatal')
             rospy.signal_shutdown()
             return
-
 
 
 class AugmentedRealityBasicsNode(DTROS):
 
     def __init__(self, node_name):
         # initialize the DTROS parent class
-        super(AugmentedRealityBasicsNode, self).__init__(node_name=node_name, node_type=NodeType.PERCEPTION)
+        super(AugmentedRealityBasicsNode, self).__init__(
+            node_name=node_name, node_type=NodeType.PERCEPTION)
         # bridge between opencv and ros
         self.bridge = CvBridge()
 
@@ -44,18 +44,21 @@ class AugmentedRealityBasicsNode(DTROS):
         self.map_file_basename = self.map_file.split('.')[0]
 
         # construct subscriber for images
-        self.camera_sub = rospy.Subscriber('camera_node/image/compressed', CompressedImage, self.callback)
+        self.camera_sub = rospy.Subscriber(
+            'camera_node/image/compressed', CompressedImage, self.callback)
         # construct publisher for AR images
-        self.pub = rospy.Publisher('~' + self.map_file_basename + '/image/compressed', CompressedImage, queue_size=10)
-
-    
+        self.pub = rospy.Publisher(
+            '~' + self.map_file_basename + '/image/compressed', CompressedImage, queue_size=10)
 
         # get camera calibration parameters (homography, camera matrix, distortion parameters)
-        self.intrinsics_file = '/data/config/calibrations/camera_intrinsic/' + rospy.get_namespace().strip("/") + ".yaml"
-        self.extrinsics_file = '/data/config/calibrations/camera_extrinsic/' + rospy.get_namespace().strip("/") + ".yaml"
-        rospy.loginfo('Reading camera intrinsics from {}'.format(self.intrinsics_file))
-        rospy.loginfo('Reading camera extrinsics from {}'.format(self.extrinsics_file))
-
+        self.intrinsics_file = '/data/config/calibrations/camera_intrinsic/' + \
+            rospy.get_namespace().strip("/") + ".yaml"
+        self.extrinsics_file = '/data/config/calibrations/camera_extrinsic/' + \
+            rospy.get_namespace().strip("/") + ".yaml"
+        rospy.loginfo('Reading camera intrinsics from {}'.format(
+            self.intrinsics_file))
+        rospy.loginfo('Reading camera extrinsics from {}'.format(
+            self.extrinsics_file))
 
         intrinsics = readYamlFile(self.intrinsics_file)
         extrinsics = readYamlFile(self.extrinsics_file)
@@ -63,18 +66,20 @@ class AugmentedRealityBasicsNode(DTROS):
         camera_params = {}
         camera_params['image_height'] = intrinsics['image_height']
         camera_params['image_width'] = intrinsics['image_width']
-        camera_params['camera_matrix'] = np.array(intrinsics['camera_matrix']['data']).reshape(3,3)
-        camera_params['distortion_coefficients'] = np.array(intrinsics['distortion_coefficients']['data'])
-        camera_params['homography'] = np.array(extrinsics['homography']).reshape(3,3)
-
+        camera_params['camera_matrix'] = np.array(
+            intrinsics['camera_matrix']['data']).reshape(3, 3)
+        camera_params['distortion_coefficients'] = np.array(
+            intrinsics['distortion_coefficients']['data'])
+        camera_params['homography'] = np.array(
+            extrinsics['homography']).reshape(3, 3)
 
         # initialize augmenter with camera calibration parameters
         self.augmenter = Augmenter(camera_params)
 
-
-         # read mapfile as a dictionary
+        # read mapfile as a dictionary
         rospack = rospkg.RosPack()
-        map_path= rospack.get_path('augmented_reality_basics') + '/maps/' + self.map_file
+        map_path = rospack.get_path(
+            'augmented_reality_basics') + '/maps/' + self.map_file
         rospy.loginfo('Reading map file from {}'.format(map_path))
         self.map_dict = readYamlFile(map_path)
 
@@ -84,10 +89,9 @@ class AugmentedRealityBasicsNode(DTROS):
                 val[0] = 'image_undistorted'
                 val[-1] = self.augmenter.ground2pixel(val[-1])
 
-                   
-
     def callback(self, data):
-        raw_img = self.bridge.compressed_imgmsg_to_cv2(data, desired_encoding="passthrough")
+        raw_img = self.bridge.compressed_imgmsg_to_cv2(
+            data, desired_encoding="passthrough")
 
         undistorted_img = self.augmenter.process_image(raw_img)
         ar_img = self.augmenter.render_segments(undistorted_img, self.map_dict)
@@ -100,6 +104,7 @@ class AugmentedRealityBasicsNode(DTROS):
 if __name__ == '__main__':
     # create the node
     rospy.loginfo('Starting segment projection')
-    node = AugmentedRealityBasicsNode(node_name='augmented_reality_basics_node')
+    node = AugmentedRealityBasicsNode(
+        node_name='augmented_reality_basics_node')
     # keep spinning
     rospy.spin()
